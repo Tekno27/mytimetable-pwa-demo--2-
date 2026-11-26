@@ -30,10 +30,35 @@ Open: http://localhost:8080
 
 **Important:** Use localhost or HTTPS. Do not open the file directly.
 
-### Install on phone
-1. Open the URL on your phone (use your computer’s LAN IP if needed)
-2. Chrome → “Add to Home Screen” / “Install app”
-3. Safari → Share → “Add to Home Screen”
+### Install on a phone
+
+PWA installation requires a secure context: use `https://` when the app is hosted online, or use localhost when testing on the same computer.
+
+#### Android (Chrome)
+
+1. Start the local server:
+
+   ```bash
+   cd timetable-pwa
+   python -m http.server 8080
+   ```
+
+2. Connect the phone and computer to the same Wi-Fi network.
+3. On the computer, find its IPv4 address using `ipconfig` in Command Prompt.
+4. Open `http://<computer-ip-address>:8080/timetable-pwa/` in Chrome on the phone.
+5. In Chrome, tap the menu (`⋮`) and select **Install app** or **Add to Home screen**.
+6. Confirm the installation. MyTimetable will appear on the home screen and open in standalone mode.
+
+Chrome may require the app to be served over HTTPS for installation outside local testing. For LAN testing, localhost and a directly addressable local network may not support every PWA installation feature.
+
+#### iPhone or iPad (Safari)
+
+1. Start the server and open the app URL on the iPhone or iPad. Use an HTTPS deployment for the best compatibility.
+2. In Safari, tap the **Share** button.
+3. Tap **Add to Home Screen**.
+4. Edit the name if needed, then tap **Add**.
+
+The app may show an install prompt in Chrome, but Safari on iPhone and iPad requires the Add to Home Screen steps above.
 
 ## Importing timetable drafts
 
@@ -41,6 +66,18 @@ The Settings page accepts CSV, TXT, XLS/XLSX, DOCX, PDF, JPG, PNG, and WebP file
 Imports are parsed locally in the browser using file-format libraries loaded as needed.
 The parser looks for weekdays, time ranges, course codes, titles, lecturers and venues, then
 shows a preview before replacing the demo timetable for this device.
+
+## Admin demo flow
+
+Use **Admin sign in** on onboarding or **Open admin console** in Settings.
+The demo credentials are `admin` / `admin123`.
+
+Administrators can select a programme and level, upload a timetable draft, review extracted
+entries, and publish the draft. Published schedules are saved in browser local storage and
+are loaded for matching student programme/level combinations.
+
+This is a front-end school-project flow only. It does not provide secure authentication,
+multi-device synchronization, or server-side authorization.
 
 Scanned PDFs and images use browser OCR and may require a clear, high-resolution source.
 Legacy `.doc` files are not supported; save them as `.docx` first.

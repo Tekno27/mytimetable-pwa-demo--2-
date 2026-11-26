@@ -129,6 +129,7 @@ const RAW_TIMETABLE = {
 let student = null; // { programme, level, name }
 let currentDay = "Mon";
 let importedTimetable = null;
+let adminDraft = null;
 
 // ===================== DOM =====================
 const pageOnboarding = document.getElementById("page-onboarding");
@@ -446,8 +447,36 @@ function showApp() {
 function showOnboarding() {
   appShell.classList.remove("active");
   appShell.classList.add("hidden");
+  document.getElementById("page-admin-login").classList.remove("active");
+  document.getElementById("page-admin-login").classList.add("hidden");
+  document.getElementById("page-admin").classList.remove("active");
+  document.getElementById("page-admin").classList.add("hidden");
   pageOnboarding.classList.remove("hidden");
   pageOnboarding.classList.add("active");
+}
+
+function showAdminLogin() {
+  pageOnboarding.classList.remove("active");
+  pageOnboarding.classList.add("hidden");
+  appShell.classList.remove("active");
+  appShell.classList.add("hidden");
+  document.getElementById("page-admin").classList.remove("active");
+  document.getElementById("page-admin").classList.add("hidden");
+  document.getElementById("page-admin-login").classList.remove("hidden");
+  document.getElementById("page-admin-login").classList.add("active");
+  document.getElementById("admin-password").value = "";
+  document.getElementById("admin-password").focus();
+}
+
+function showAdminConsole() {
+  document.getElementById("page-admin-login").classList.remove("active");
+  document.getElementById("page-admin-login").classList.add("hidden");
+  pageOnboarding.classList.remove("active");
+  pageOnboarding.classList.add("hidden");
+  appShell.classList.remove("active");
+  appShell.classList.add("hidden");
+  document.getElementById("page-admin").classList.remove("hidden");
+  document.getElementById("page-admin").classList.add("active");
 }
 
 // ===================== EVENTS =====================
@@ -512,6 +541,35 @@ document.getElementById("btn-change-programme").addEventListener("click", () => 
   showOnboarding();
 });
 
+document.getElementById("btn-open-admin").addEventListener("click", showAdminLogin);
+document.getElementById("btn-open-admin-settings").addEventListener("click", showAdminLogin);
+document.getElementById("btn-back-to-student").addEventListener("click", () => {
+  if (student) showApp();
+  else showOnboarding();
+});
+document.getElementById("btn-admin-logout").addEventListener("click", () => {
+  sessionStorage.removeItem("mytimetable_admin");
+  if (student) showApp();
+  else showOnboarding();
+});
+
+document.getElementById("admin-login-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const username = document.getElementById("admin-username").value.trim();
+  const password = document.getElementById("admin-password").value;
+  const error = document.getElementById("admin-error");
+
+  if (username !== "admin" || password !== "admin123") {
+    error.textContent = "Incorrect username or password.";
+    document.getElementById("admin-password").focus();
+    return;
+  }
+
+  error.textContent = "";
+  sessionStorage.setItem("mytimetable_admin", "true");
+  showAdminConsole();
+});
+
 document.getElementById("btn-clear-data").addEventListener("click", () => {
   if (confirm("Reset all app data and return to onboarding?")) {
     localStorage.removeItem("mytimetable_student");
@@ -569,6 +627,61 @@ document.getElementById("btn-apply-import").addEventListener("click", () => {
   }
 });
 
+document.getElementById("admin-timetable-file").addEventListener("change", async (event) => {
+  const file = event.target.files[0];
+  const status = document.getElementById("admin-import-status");
+  const publishButton = document.getElementById("btn-publish-timetable");
+  const preview = document.getElementById("admin-import-preview");
+  if (!file) return;
+
+  publishButton.disabled = true;
+  adminDraft = null;
+  status.textContent = `Reading ${file.name}…`;
+  status.classList.remove("published-note");
+  try {
+    const text = await extractFileText(file);
+    const timetable = parseTableText(text);
+    const count = Object.values(timetable).reduce((sum, slots) => sum + slots.length, 0);
+    if (!count) {
+      status.textContent = "No weekday and time entries were found.";
+      preview.innerHTML =
+        `<p style="color:#687386;font-size:12px">Use a clear timetable with Monday–Friday and time ranges.</p>`;
+      return;
+    }
+
+    adminDraft = timetable;
+    status.textContent = `Found ${count} timetable ${count === 1 ? "entry" : "entries"} — review before publishing.`;
+    preview.innerHTML = Object.entries(timetable).flatMap(([day, slots]) =>
+      slots.map(slot => `
+        <div class="import-preview-row">
+          <strong>${day}</strong>
+          <span>${slot.time}<br /><b>${slot.code}</b> · ${slot.title}</span>
+        </div>
+      `)
+    ).join("");
+    publishButton.disabled = false;
+  } catch (error) {
+    status.textContent = error.message || "The timetable could not be read.";
+  }
+});
+
+document.getElementById("btn-publish-timetable").addEventListener("click", () => {
+  if (!adminDraft) return;
+  const programme = document.getElementById("admin-programme").value;
+  const level = document.getElementById("admin-level").value;
+  const published = JSON.stringify(adminDraft);
+  const key = `mytimetable_published:${programme}:${level}`;
+
+  localStorage.setItem(key, published);
+  localStorage.setItem("mytimetable_import", published);
+  importedTimetable = adminDraft;
+
+  const status = document.getElementById("admin-import-status");
+  status.textContent = `Published for ${programme}, Level ${level}.`;
+  status.classList.add("published-note");
+  document.getElementById("btn-publish-timetable").disabled = true;
+});
+
 // Persist reminder prefs (demo)
 document.getElementById("toggle-reminders").addEventListener("change", (e) => {
   localStorage.setItem("mytimetable_reminders", e.target.checked);
@@ -623,7 +736,11 @@ if (savedReminderMinutes) {
 
 student = loadStudent();
 try {
-  const savedImport = localStorage.getItem("mytimetable_import");
+  let savedImport = null;
+  if (student?.programme && student?.level) {
+    savedImport = localStorage.getItem(`mytimetable_published:${student.programme}:${student.level}`);
+  }
+  if (!savedImport) savedImport = localStorage.getItem("mytimetable_import");
   if (savedImport) importedTimetable = JSON.parse(savedImport);
 } catch {
   localStorage.removeItem("mytimetable_import");
