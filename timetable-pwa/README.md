@@ -36,20 +36,22 @@ PWA installation requires a secure context: use `https://` when the app is hoste
 
 #### Android (Chrome)
 
-1. Start the local server:
+For an installable PWA, open the app through an HTTPS URL. A LAN HTTP address such as `http://192.168.x.x:8080` usually allows browsing but Chrome will say it cannot install the app and offer only a shortcut.
 
-   ```bash
-   cd timetable-pwa
-   python -m http.server 8080
+The repository includes a GitHub Pages deployment workflow. To publish it:
+
+1. Push the `main` branch to GitHub.
+2. Open the repository on GitHub and go to **Settings → Pages**.
+3. Under **Build and deployment**, set **Source** to **GitHub Actions**.
+4. Open the **Actions** tab and wait for **Deploy PWA to GitHub Pages** to complete.
+5. Open the published HTTPS URL from the Pages deployment, usually:
+
+   ```text
+   https://tekno27.github.io/mytimetable-pwa-demo--2-/
    ```
 
-2. Connect the phone and computer to the same Wi-Fi network.
-3. On the computer, find its IPv4 address using `ipconfig` in Command Prompt.
-4. Open `http://<computer-ip-address>:8080/timetable-pwa/` in Chrome on the phone.
-5. In Chrome, tap the menu (`⋮`) and select **Install app** or **Add to Home screen**.
-6. Confirm the installation. MyTimetable will appear on the home screen and open in standalone mode.
-
-Chrome may require the app to be served over HTTPS for installation outside local testing. For LAN testing, localhost and a directly addressable local network may not support every PWA installation feature.
+6. In Chrome on the phone, tap the menu (`⋮`) and select **Install app** or **Add to Home screen**.
+7. Confirm the installation. MyTimetable will appear on the home screen and open in standalone mode.
 
 #### iPhone or iPad (Safari)
 

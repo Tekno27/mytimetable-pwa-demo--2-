@@ -1,4 +1,4 @@
-const CACHE_NAME = "mytimetable-v4";
+const CACHE_NAME = "mytimetable-v5";
 const ASSETS = [
   "./",
   "./index.html",
