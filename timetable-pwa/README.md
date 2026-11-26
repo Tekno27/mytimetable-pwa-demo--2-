@@ -35,8 +35,18 @@ Open: http://localhost:8080
 2. Chrome → “Add to Home Screen” / “Install app”
 3. Safari → Share → “Add to Home Screen”
 
+## Importing timetable drafts
+
+The Settings page accepts CSV, TXT, XLS/XLSX, DOCX, PDF, JPG, PNG, and WebP files.
+Imports are parsed locally in the browser using file-format libraries loaded as needed.
+The parser looks for weekdays, time ranges, course codes, titles, lecturers and venues, then
+shows a preview before replacing the demo timetable for this device.
+
+Scanned PDFs and images use browser OCR and may require a clear, high-resolution source.
+Legacy `.doc` files are not supported; save them as `.docx` first.
+
 ## What is still demo / not real yet
-- Data is hardcoded sample data (not parsed from Excel drafts)
+- Data may need manual review after parsing a draft
 - Push notifications are UI-only (need backend + VAPID keys for real push)
 - No admin upload interface yet
 - No real authentication (profile lives in localStorage)

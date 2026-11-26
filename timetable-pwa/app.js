@@ -128,6 +128,7 @@ const RAW_TIMETABLE = {
 // ===================== STATE =====================
 let student = null; // { programme, level, name }
 let currentDay = "Mon";
+let importedTimetable = null;
 
 // ===================== DOM =====================
 const pageOnboarding = document.getElementById("page-onboarding");
@@ -140,6 +141,7 @@ const navItems = document.querySelectorAll(".nav-item");
 // ===================== HELPERS =====================
 function getTimetable() {
   if (!student) return {};
+  if (importedTimetable) return importedTimetable;
   const prog = RAW_TIMETABLE[student.programme];
   if (!prog) return {};
   return prog[student.level] || {};
@@ -161,6 +163,193 @@ function loadStudent() {
 function getInitials(name) {
   if (!name) return student?.programme?.split(" ").pop()?.[0] || "S";
   return name.trim().split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
+}
+
+// ===================== TIMETABLE IMPORT =====================
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) {
+      resolve();
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = src;
+    script.onload = resolve;
+    script.onerror = () => reject(new Error("Could not load the file parser."));
+    document.head.appendChild(script);
+  });
+}
+
+function parseCsv(text) {
+  const rows = [];
+  text.replace(/\r/g, "").split("\n").forEach(line => {
+    if (!line.trim()) return;
+    const cells = [];
+    let value = "";
+    let quoted = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"' && line[i + 1] === '"') {
+        value += '"';
+        i++;
+      } else if (char === '"') {
+        quoted = !quoted;
+      } else if (char === "," && !quoted) {
+        cells.push(value.trim());
+        value = "";
+      } else {
+        value += char;
+      }
+    }
+    cells.push(value.trim());
+    rows.push(cells);
+  });
+  return rows;
+}
+
+function dayFromText(text) {
+  const match = text.match(/\b(mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|fri(?:day)?|sat(?:urday)?|sun(?:day)?)\b/i);
+  if (!match) return null;
+  const day = match[1].toLowerCase();
+  if (day.startsWith("mon")) return "Mon";
+  if (day.startsWith("tue")) return "Tue";
+  if (day.startsWith("wed")) return "Wed";
+  if (day.startsWith("thu")) return "Thu";
+  if (day.startsWith("fri")) return "Fri";
+  return null;
+}
+
+function parseTimetableText(text) {
+  const result = { Mon: [], Tue: [], Wed: [], Thu: [], Fri: [] };
+  const lines = text.replace(/\r/g, "").split("\n").map(line => line.trim()).filter(Boolean);
+  let currentDay = null;
+
+  lines.forEach(line => {
+    const inlineDay = dayFromText(line);
+    if (inlineDay) currentDay = inlineDay;
+
+    const timeMatch = line.match(/(?:^|[^\d])((?:[01]?\d|2[0-3])[:.][0-5]\d)\s*(?:-|–|—|to)\s*((?:[01]?\d|2[0-3])[:.][0-5]\d)/i);
+    if (!timeMatch || !currentDay) return;
+
+    const codeMatch = line.match(/\b([A-Z]{2,5}\s*-?\s*\d{2,4}[A-Z]?)\b/i);
+    const parts = line
+      .replace(timeMatch[0], " ")
+      .replace(/\b(mon(?:day)?|tue(?:sday)?|wed(?:nesday)?|thu(?:rsday)?|fri(?:day)?)\b/gi, " ")
+      .split(/\s*[|;/]\s*|\t+/)
+      .map(part => part.trim())
+      .filter(Boolean);
+
+    const code = codeMatch ? codeMatch[1].toUpperCase().replace(/\s+/g, "") : "LECT";
+    const title = parts.find(part => /[A-Za-z]/.test(part) && !/^(room|lt|hall|lab)/i.test(part))
+      || "Imported lecture";
+    const venue = parts.find(part => /^(room|lt|hall|lab|block|theatre)/i.test(part)) || "Venue not stated";
+    const lecturer = parts.find(part => /\b(dr|prof|mr|mrs|ms)\b/i.test(part)) || "Lecturer not stated";
+    const normalizedStart = timeMatch[1].replace(".", ":");
+    const normalizedEnd = timeMatch[2].replace(".", ":");
+
+    result[currentDay].push({
+      time: `${normalizedStart} – ${normalizedEnd}`,
+      code,
+      title,
+      lecturer,
+      venue,
+      color: "bg-teal-500"
+    });
+  });
+
+  return result;
+}
+
+function parseTableText(text) {
+  const csvRows = parseCsv(text);
+  if (csvRows.length > 1) {
+    const result = { Mon: [], Tue: [], Wed: [], Thu: [], Fri: [] };
+    const allText = text + "\n";
+    const parsed = parseTimetableText(allText);
+    let found = false;
+
+    csvRows.forEach(row => {
+      const line = row.join(" | ");
+      const single = parseTimetableText(line);
+      Object.keys(result).forEach(day => {
+        if (single[day].length) {
+          result[day].push(...single[day]);
+          found = true;
+        }
+      });
+    });
+
+    if (found) return result;
+  }
+  return parseTimetableText(text);
+}
+
+async function extractFileText(file) {
+  const name = file.name.toLowerCase();
+
+  if (name.endsWith(".csv") || name.endsWith(".txt")) {
+    return await file.text();
+  }
+
+  if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
+    await loadScript("https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js");
+    const buffer = await file.arrayBuffer();
+    const workbook = XLSX.read(buffer, { type: "array" });
+    return workbook.SheetNames.map(sheetName =>
+      XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName])
+    ).join("\n");
+  }
+
+  if (name.endsWith(".docx")) {
+    await loadScript("https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js");
+    const buffer = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer: buffer });
+    return result.value;
+  }
+
+  if (name.endsWith(".pdf")) {
+    await loadScript("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js");
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    const buffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+    let text = "";
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+      const page = await pdf.getPage(pageNumber);
+      const content = await page.getTextContent();
+      text += content.items.map(item => item.str).join(" ") + "\n";
+    }
+    return text;
+  }
+
+  if (/\.jpe?g$|\.png$|\.webp$/i.test(name)) {
+    await loadScript("https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js");
+    const worker = await Tesseract.createWorker("eng");
+    const result = await worker.recognize(file);
+    await worker.terminate();
+    return result.data.text;
+  }
+
+  throw new Error("This file type is not supported. Use PDF, DOCX, XLSX/XLS/CSV, text, JPG, PNG or WebP.");
+}
+
+function renderImportPreview(timetable) {
+  const preview = document.getElementById("import-preview");
+  const rows = [];
+  Object.entries(timetable).forEach(([day, slots]) => {
+    slots.forEach(slot => rows.push({ day, slot }));
+  });
+
+  if (!rows.length) {
+    preview.innerHTML = `<p style="color:#687386;font-size:12px">No timetable rows found. Add a clear weekday and time range to the source.</p>`;
+    return;
+  }
+  preview.innerHTML = rows.map(({ day, slot }) => `
+    <div class="import-preview-row">
+      <strong>${day}</strong>
+      <span>${slot.time}<br /><b>${slot.code}</b> · ${slot.title}</span>
+    </div>
+  `).join("");
 }
 
 // ===================== RENDER =====================
@@ -326,8 +515,57 @@ document.getElementById("btn-change-programme").addEventListener("click", () => 
 document.getElementById("btn-clear-data").addEventListener("click", () => {
   if (confirm("Reset all app data and return to onboarding?")) {
     localStorage.removeItem("mytimetable_student");
+    localStorage.removeItem("mytimetable_import");
+    localStorage.removeItem("mytimetable_import_pending");
+    importedTimetable = null;
     student = null;
     showOnboarding();
+  }
+});
+
+document.getElementById("timetable-file").addEventListener("change", async (event) => {
+  const file = event.target.files[0];
+  const status = document.getElementById("import-status");
+  const applyButton = document.getElementById("btn-apply-import");
+  if (!file) return;
+
+  applyButton.disabled = true;
+  status.textContent = `Reading ${file.name}…`;
+  try {
+    const text = await extractFileText(file);
+    const timetable = parseTableText(text);
+    const count = Object.values(timetable).reduce((sum, slots) => sum + slots.length, 0);
+    if (!count) {
+      status.textContent = "No readable weekday and time entries were found.";
+      document.getElementById("import-preview").innerHTML =
+        `<p style="color:#687386;font-size:12px">Try a text, CSV, or spreadsheet format with columns for day and time.</p>`;
+      return;
+    }
+
+    importedTimetable = timetable;
+    localStorage.setItem("mytimetable_import_pending", JSON.stringify(timetable));
+    status.textContent = `Found ${count} timetable ${count === 1 ? "entry" : "entries"}. Review, then apply.`;
+    renderImportPreview(timetable);
+    applyButton.disabled = false;
+  } catch (error) {
+    importedTimetable = null;
+    status.textContent = error.message || "The timetable could not be read.";
+  }
+});
+
+document.getElementById("btn-apply-import").addEventListener("click", () => {
+  const pending = localStorage.getItem("mytimetable_import_pending");
+  if (!pending) return;
+  try {
+    importedTimetable = JSON.parse(pending);
+    localStorage.setItem("mytimetable_import", pending);
+    localStorage.removeItem("mytimetable_import_pending");
+    document.getElementById("import-status").textContent =
+      "Imported timetable applied and saved on this device.";
+    document.getElementById("btn-apply-import").disabled = true;
+    renderDay("Mon");
+  } catch {
+    document.getElementById("import-status").textContent = "The imported timetable could not be saved.";
   }
 });
 
@@ -384,6 +622,13 @@ if (savedReminderMinutes) {
 }
 
 student = loadStudent();
+try {
+  const savedImport = localStorage.getItem("mytimetable_import");
+  if (savedImport) importedTimetable = JSON.parse(savedImport);
+} catch {
+  localStorage.removeItem("mytimetable_import");
+  importedTimetable = null;
+}
 if (student && student.programme && student.level) {
   showApp();
 } else {

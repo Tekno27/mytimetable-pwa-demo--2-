@@ -497,6 +497,56 @@
       line-height: 1.5;
     }
 
+    .import-card {
+      margin-top: 24px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--paper);
+      padding: 16px;
+    }
+
+    .import-card h3 { margin: 0 0 6px; font-size: 15px; }
+    .import-card p { margin: 0 0 12px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+    .import-actions {
+      display: grid;
+      gap: 8px;
+    }
+
+    .import-actions input { width: 100%; font-size: 12px; }
+    .import-actions button {
+      min-height: 42px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--navy);
+      color: white;
+      font-weight: 750;
+    }
+
+    .import-status {
+      min-height: 18px;
+      margin: 10px 0 0 !important;
+      color: var(--ink) !important;
+    }
+
+    .import-preview {
+      max-height: 220px;
+      margin-top: 10px;
+      overflow: auto;
+      border-top: 1px solid var(--line);
+    }
+
+    .import-preview-row {
+      display: grid;
+      grid-template-columns: 52px 1fr;
+      gap: 8px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 12px;
+    }
+
+    .import-preview-row strong { color: var(--teal); }
+
     .bottom-nav {
       position: fixed;
       left: 0;
@@ -694,6 +744,18 @@
             <strong>Reset app data</strong>
             <span class="arrow" aria-hidden="true">›</span>
           </button>
+        </div>
+
+        <div class="import-card">
+          <h3>Import a timetable</h3>
+          <p>PDF, Word (.docx), Excel (.xlsx/.xls/.csv), image, or text files. Files are processed on this device.</p>
+          <div class="import-actions">
+            <input id="timetable-file" type="file"
+              accept=".pdf,.docx,.xlsx,.xls,.csv,.txt,.jpg,.jpeg,.png,.webp,application/pdf,text/csv,text/plain" />
+            <button id="btn-apply-import" type="button" disabled>Use imported timetable</button>
+          </div>
+          <p id="import-status" class="import-status" role="status" aria-live="polite"></p>
+          <div id="import-preview" class="import-preview"></div>
         </div>
 
         <div class="demo-note" style="margin-top:24px">
