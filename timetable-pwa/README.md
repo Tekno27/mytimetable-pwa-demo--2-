@@ -71,8 +71,14 @@ shows a preview before replacing the demo timetable for this device.
 
 ## Admin demo flow
 
-Use **Admin sign in** on onboarding or **Open admin console** in Settings.
-The demo credentials are `admin` / `admin123`.
+Open `/admin` on the deployed site to reach the admin sign-in screen. The student
+onboarding and Settings screens do not link to the admin area. Use the demo credentials
+`admin` / `admin123`. On Render, add a
+rewrite rule with source `/admin`, destination `/index.html`, and action **Rewrite**
+so direct visits to `/admin` load the app.
+
+This front-end demo does not provide secure authentication. Admin changes are stored
+only in that browser's local storage.
 
 Administrators can select a programme and level, upload a timetable draft, review extracted
 entries, and publish the draft. Published schedules are saved in browser local storage and

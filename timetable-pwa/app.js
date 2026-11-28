@@ -479,6 +479,16 @@ function showAdminConsole() {
   document.getElementById("page-admin").classList.add("active");
 }
 
+function isAdminRoute() {
+  return /\/admin\/?$/.test(window.location.pathname);
+}
+
+function leaveAdminRoute() {
+  if (!isAdminRoute()) return;
+  const studentPath = window.location.pathname.replace(/admin\/?$/, "");
+  window.history.replaceState(null, "", studentPath || "/");
+}
+
 // ===================== EVENTS =====================
 document.getElementById("setup-form").addEventListener("submit", (event) => {
   event.preventDefault();
@@ -541,14 +551,15 @@ document.getElementById("btn-change-programme").addEventListener("click", () => 
   showOnboarding();
 });
 
-document.getElementById("btn-open-admin").addEventListener("click", showAdminLogin);
-document.getElementById("btn-open-admin-settings").addEventListener("click", showAdminLogin);
 document.getElementById("btn-back-to-student").addEventListener("click", () => {
+  leaveAdminRoute();
   if (student) showApp();
   else showOnboarding();
 });
+
 document.getElementById("btn-admin-logout").addEventListener("click", () => {
   sessionStorage.removeItem("mytimetable_admin");
+  leaveAdminRoute();
   if (student) showApp();
   else showOnboarding();
 });
@@ -762,7 +773,9 @@ try {
   localStorage.removeItem("mytimetable_import");
   importedTimetable = null;
 }
-if (student && student.programme && student.level) {
+if (isAdminRoute()) {
+  showAdminLogin();
+} else if (student && student.programme && student.level) {
   showApp();
 } else {
   showOnboarding();
