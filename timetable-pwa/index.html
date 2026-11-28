@@ -87,6 +87,13 @@
 
     .wordmark-name { font-size: 17px; font-weight: 750; }
 
+    .onboarding .install-button {
+      margin-top: 20px;
+      border-color: rgba(255, 255, 255, .55);
+      background: transparent;
+      color: white;
+    }
+
     .onboarding h1 {
       margin: 0 0 12px;
       max-width: 390px;
@@ -684,6 +691,7 @@
         </div>
         <h1 id="onboarding-title">Your week,<br />at a glance.</h1>
         <p class="onboarding-lead">Set up a personal timetable for your programme and level.</p>
+        <button class="install-button" data-install-button type="button">Install app</button>
       </section>
 
       <form class="setup-panel" id="setup-form" novalidate>
@@ -796,7 +804,7 @@
           <strong>MyTimetable</strong>
           <span id="header-subtitle">—</span>
         </div>
-        <button id="installBtn" class="install-button hidden" type="button">Install</button>
+        <button class="install-button" data-install-button type="button">Install app</button>
       </div>
     </header>
 

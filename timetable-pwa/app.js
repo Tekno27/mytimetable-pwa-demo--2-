@@ -694,25 +694,41 @@ document.querySelectorAll('input[name="remind-time"]').forEach(r => {
 
 // ===================== PWA =====================
 let deferredPrompt;
-const installBtn = document.getElementById("installBtn");
+const installButtons = document.querySelectorAll("[data-install-button]");
 
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
   deferredPrompt = e;
-  installBtn.classList.remove("hidden");
 });
 
-installBtn.addEventListener("click", async () => {
-  if (!deferredPrompt) return;
+async function installApp() {
+  if (!deferredPrompt) {
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const instructions = isIOS
+      ? "To add MyTimetable to your Home Screen, tap Share, then Add to Home Screen."
+      : "Open your browser menu (⋮ or ⋯) and choose Install app or Add to Home screen. If you don't see that option, make sure you're using the HTTPS Render URL and reload the page.";
+    window.alert(instructions);
+    return;
+  }
+
   deferredPrompt.prompt();
   const { outcome } = await deferredPrompt.userChoice;
-  if (outcome === "accepted") installBtn.classList.add("hidden");
+  if (outcome === "accepted") {
+    installButtons.forEach((button) => button.classList.add("hidden"));
+  }
   deferredPrompt = null;
-});
+}
+
+installButtons.forEach((button) => button.addEventListener("click", installApp));
 
 window.addEventListener("appinstalled", () => {
-  installBtn.classList.add("hidden");
+  installButtons.forEach((button) => button.classList.add("hidden"));
 });
+
+if (window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true) {
+  installButtons.forEach((button) => button.classList.add("hidden"));
+}
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
